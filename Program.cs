@@ -1,4 +1,6 @@
-﻿public enum TypTrybu
+﻿using System;
+
+public enum TypTrybu
 {
     FISZKA,
     QUIZ,
@@ -10,23 +12,110 @@ public enum StatusPrzetwarzania
     POPRAWNA_ODP,
     NIEPOPRAWNA_ODP,
     WYJDZ,
+    NICNIEROB,
     NIEZNANAKOMENDA
 }
 
 // poprosze zeby wszystkie tryby nauki implementowaly ten interfejs
 // 1. tryb nauki najpierw wysyla string z info o tym jak dziala do ui, ui go wyswietla
-// 2. ZwrocTekst generuje i zwraca pytanie testowe/quizowe cokolwiek
+// 2. ZwrocPytanie generuje i zwraca pytanie testowe/quizowe cokolwiek
 // 3. ui wysyla odpowiedz uzytkownika do trybu nauki, PrzetworzOdpowiedz ją well... przetwarza, tzn.
 //      decyduje czy odpowiedz jest poprawna oraz czy uzytkownik przypadkiem nie chce wyjsc z trybu
 // 4. powtarzamy kroki 2. i 3. az do momentu wyjscia uzytkownika z trybu  
 
-// najlepiej by bylo zrobic klase abstrakcyjna po ktora implementuje ten interfejs i po ktorej dziedzicza wszystkie tryby nauki,
-// to wtedy troche mniej bedzie trzeba pisac tego samego kodu w kazdej z nich :)
 public interface ITrybNauki
 {
     public string ZwrocInfo();
-    public string ZwrocTekst();
+    public string ZwrocPytanie();
     public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz);
+}
+
+public class TrybFiszka : ITrybNauki
+{
+    private int nrFiszki = 0;
+    private Fiszka obecnaFiszka;
+    private FiszkaZestaw obecnyZestaw;
+    private bool czyWszystkieOdwrocone = false;
+    private bool czyObecnaOdwrocona = false;
+
+    public TrybFiszka(FiszkaZestaw obecnyZestaw)
+    {
+        this.obecnyZestaw = obecnyZestaw;
+        obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+    }
+    public string ZwrocInfo()
+    {
+        return "0 - Wyjdz z trybu\n" +
+               "1 - Poprzednia Fiszka\n" +
+               "2 - Nastepna Fiszka\n" +
+               "3 - Odwróć obecną fiszkę\n" +
+               "4 - Odwróc wszystkie fiszki\n";
+    }
+    public string ZwrocPytanie()
+    {
+        bool pokazSlowo;
+        if (czyObecnaOdwrocona) { pokazSlowo = czyWszystkieOdwrocone; }
+        else { pokazSlowo = !czyWszystkieOdwrocone; }
+
+        string obecneSlowo = pokazSlowo ? obecnaFiszka.slowo : obecnaFiszka.tlumaczenie;
+        return $"Słowo nr. {nrFiszki + 1}: {obecneSlowo}:";
+    }
+
+    public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
+    {
+        switch (odpowiedz)
+        {
+            case "0":
+                return StatusPrzetwarzania.WYJDZ;
+
+            case "1":
+                nrFiszki = int.Clamp(nrFiszki - 1, 0, obecnyZestaw.fiszki.Count() - 1);
+                obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+                czyObecnaOdwrocona = false;
+                return StatusPrzetwarzania.NICNIEROB;
+
+            case "2":
+                nrFiszki = int.Clamp(nrFiszki + 1, 0, obecnyZestaw.fiszki.Count() - 1);
+                obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+                czyObecnaOdwrocona = false;
+                return StatusPrzetwarzania.NICNIEROB;
+
+            case "3":
+                czyObecnaOdwrocona = !czyObecnaOdwrocona;
+                return StatusPrzetwarzania.NICNIEROB;
+
+            case "4":
+                czyWszystkieOdwrocone = !czyWszystkieOdwrocone;
+                return StatusPrzetwarzania.NICNIEROB;
+
+            default:
+                if (odpowiedz == "") { return StatusPrzetwarzania.NICNIEROB; }
+                return StatusPrzetwarzania.NIEZNANAKOMENDA;
+        }
+    }
+}
+
+public static class FabrykaTrybow
+{
+    public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
+    {
+        switch (typ)
+        {
+            case TypTrybu.FISZKA:
+                return new TrybFiszka(zestaw);
+
+            //narazie quiz i wpisywanie zwracaja fiszka bo nie ma ich klas a metoda musi cos zwrocic
+            case TypTrybu.QUIZ:
+                return new TrybFiszka(zestaw);
+
+            case TypTrybu.WPISYWANIE:
+                return new TrybFiszka(zestaw);
+
+            default:
+                Console.WriteLine("Niepoprawny typ trybu nauki podczas wyboru, zwracam trybfiszka");
+                return new TrybFiszka(zestaw);
+        }
+    }
 }
 
 // Ta klasa NIE JEST napisana w dobrej praktyce programistycznej, ale zalezalo mi na czasie, a nie
@@ -104,6 +193,10 @@ public class UI
 
                 case "2":
                     MenuZestawy();
+                    break;
+
+                case "3":
+                    MenuWyborTrybuNauki();
                     break;
 
                 default:
@@ -367,7 +460,104 @@ public class UI
                     }
                     menuWlaczone = false;
                     break;
+
+                default:
+                    Console.WriteLine("Niepoprawna komenda");
+                    Console.ReadLine();
+                    break;
             }
+        }
+    }
+    static void MenuWyborTrybuNauki()
+    {
+        bool menuWlaczone = true;
+        string message =
+            $"Wybierz tryb:\n" +
+            "0. Wyjdz\n" +
+            "1. Tryb Fiszek\n" +
+            "2. Tryb Quizu\n" +
+            "3. Tryb Wpisywania\n";
+
+        while (menuWlaczone)
+        {
+            Console.Clear();
+            Console.WriteLine(message);
+            Console.Write("> ");
+            string wybor = Console.ReadLine();
+            int parsedWybor;
+            bool czyWyborPoprawny = int.TryParse(wybor, out parsedWybor);
+
+            switch (wybor)
+            {
+                case "0":
+                    menuWlaczone = false;
+                    break;
+
+                case "1":
+                case "2":
+                case "3":
+                    TypTrybu wybranyTyp = (TypTrybu)(int.Parse(wybor) - 1);
+                    FiszkaZestaw wybranyZestaw;
+                    int wyborZestawu = PrzejrzyjListeElementow<FiszkaZestaw>(BazaZestawow.wszystkieZestawy);
+                    if (wyborZestawu != 0)
+                    {
+                        wybranyZestaw = BazaZestawow.wszystkieZestawy[wyborZestawu - 1];
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    MenuTrybNauki(wybranyTyp, wybranyZestaw);
+                    break;
+
+                default:
+                    Console.WriteLine("Niepoprawna komenda");
+                    Console.ReadLine();
+                    break;
+            }
+        }
+    }
+    static void MenuTrybNauki(TypTrybu wybranyTyp, FiszkaZestaw wybranyZestaw)
+    {
+        ITrybNauki obecnyTryb = FabrykaTrybow.UtworzTryb(wybranyTyp, wybranyZestaw);
+        bool trybWlaczony = true;
+
+        while (trybWlaczony)
+        {
+            Console.Clear();
+            Console.WriteLine(obecnyTryb.ZwrocInfo());
+            Console.WriteLine(obecnyTryb.ZwrocPytanie());
+
+            Console.Write("> ");
+            string input = Console.ReadLine();
+            StatusPrzetwarzania statusPrzetwarzania = obecnyTryb.PrzetworzOdpowiedz(input);
+
+            switch (statusPrzetwarzania)
+            {
+                case StatusPrzetwarzania.POPRAWNA_ODP:
+                    Console.WriteLine("Brawo! Poprawna odpowiedź!");
+                    Console.ReadLine();
+                    break;
+
+                case StatusPrzetwarzania.NIEPOPRAWNA_ODP:
+                    Console.WriteLine("Zła odpowiedź!");
+                    Console.ReadLine();
+                    break;
+
+                case StatusPrzetwarzania.WYJDZ:
+                    trybWlaczony = false;
+                    break;
+
+                case StatusPrzetwarzania.NICNIEROB:
+                    break;
+
+                case StatusPrzetwarzania.NIEZNANAKOMENDA:
+                    Console.WriteLine("Niepoprawny input trybu nauki");
+                    Console.ReadLine();
+                    break;
+            }
+
         }
     }
 }
