@@ -1,5 +1,5 @@
 ﻿using System;
-
+using System.IO;
 public enum TypTrybu
 {
     FISZKA,
@@ -95,6 +95,31 @@ public class TrybFiszka : ITrybNauki
     }
 }
 
+public class TrybQuiz : ITrybNauki
+{
+    private int nrFiszki = 0;
+    private Fiszka obecnaFiszka;
+    private FiszkaZestaw obecnyZestaw;
+    public TrybQuiz(FiszkaZestaw obecnyZestaw)
+    {
+        this.obecnyZestaw = obecnyZestaw;
+        obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+    }
+    public string ZwrocInfo()
+    {
+        return "0 - Wyjdz z trybu\n" +
+               "Podaj odpowiedz na pytanie:\n";
+    }
+    public string ZwrocPytanie()
+    {
+        return "to be implemented";
+    }
+    public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
+    {
+        return StatusPrzetwarzania.NICNIEROB;
+    }
+}
+
 public static class FabrykaTrybow
 {
     public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
@@ -139,7 +164,7 @@ public class UI
         // Wypisuje elementy ze skladnia "1. Pierwszy element \n 2. Drugi element..."
         for (int i = 0; i < lista.Count(); i++)
         {
-            Console.WriteLine($"{i+1}. {lista[i]}");
+            Console.WriteLine($"{i + 1}. {lista[i]}");
         }
 
         // Prosi o input dopoki nie bedzie to liczba bedaca zerem lub jakims indeksem listy
@@ -172,7 +197,8 @@ public class UI
             "2. Zestawy\n" +
             "3. Tryby Nauki\n" +
             "4. Statystyki\n" +
-            "5. Test\n";
+            "5. Test\n" +
+            "6. Importuj dane\n";
 
         while (menuWlaczone)
         {
@@ -197,6 +223,10 @@ public class UI
 
                 case "3":
                     MenuWyborTrybuNauki();
+                    break;
+
+                case "6":
+                    MenuImportExport();
                     break;
 
                 default:
@@ -243,7 +273,7 @@ public class UI
                     Console.WriteLine("Podaj tlumaczenie:");
                     Console.Write("> ");
                     tlumaczenie = Console.ReadLine();
-                    new Fiszka(slowo, tlumaczenie);
+                    BazaFiszek.wszystkieFiszki.Add(new Fiszka(slowo, tlumaczenie));
                     break;
 
                 default:
@@ -253,7 +283,7 @@ public class UI
             }
         }
     }
-    
+
     // calkiem generalne menu, uzywa go wybieranie fiszek z menu fiszek
     // oraz wybieranie fiszek z menu edycji zestawu
     static void MenuWyborFiszki(Fiszka wybranaFiszka, List<Fiszka> listaZawierajacaFiszke)
@@ -560,95 +590,225 @@ public class UI
 
         }
     }
-}
 
-static class BazaZestawow
+    static void MenuImportExport()
+    {
+        string nazwaPliku;
+        bool menuWlaczone = true;
+        string message = "0. Wyjdz\n" +
+                         "1. Importuj zestaw\n" +
+                         "2. Eksportuj zestaw\n";
+        
+        while (menuWlaczone)
+        {
+            Console.Clear();
+            Console.WriteLine(message);
+            Console.Write("> ");
+            string wybor = Console.ReadLine();
+            switch (wybor)
+            {
+                case "0":
+                    menuWlaczone = false;
+                    break;
+
+                case "1":
+                    Console.WriteLine("Podaj nazwe pliku do importu:");
+                    Console.Write("> ");
+                    nazwaPliku = Console.ReadLine();
+
+                    string path = Path.Combine(AppContext.BaseDirectory, nazwaPliku);
+
+                    if (!File.Exists(path))
+                    {
+                        Console.WriteLine("Nie mozna znalezc pliku");
+                        Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
+                        Console.ReadLine();
+                    }
+                    else
+                    {
+
+                        ImportExport.Importuj(nazwaPliku);
+                        Console.WriteLine("Import zakonczony pomyslnie");
+                        Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
+                        Console.ReadLine();
+                    }
+                    break;
+
+                case "2":
+                    Console.WriteLine("Wybierz nazwe zestawu do eksportu:");
+                    Console.Write("> ");
+                    int i = 0;
+                    while(i!=BazaZestawow.wszystkieZestawy.Count)
+                    {
+                        Console.WriteLine($"{i+1}. {BazaZestawow.wszystkieZestawy[i].nazwa}");
+                        i++;
+                    }
+                    Console.Write("\n> ");
+                    FiszkaZestaw nazwaZestawu = BazaZestawow.wszystkieZestawy[int.Parse(Console.ReadLine())-1];
+                    nazwaPliku= nazwaZestawu.nazwa;
+                    i = 0;
+                    bool contains= false;
+                    while (i != BazaZestawow.wszystkieZestawy.Count())
+                    {
+                        nazwaZestawu = BazaZestawow.wszystkieZestawy[i];
+                        if (nazwaZestawu.nazwa == nazwaPliku)
+                        {
+                            Console.WriteLine("Pod jaka nazwe pliku eksport wykonac (bez rozszerzenia)?");
+                            Console.Write("> ");
+                            nazwaPliku = Console.ReadLine();
+                            ImportExport.Eksportuj(nazwaZestawu,nazwaPliku);
+                            Console.WriteLine("Eksport zakonczony pomyslnie");
+                            Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
+                            Console.ReadLine();
+                            contains = true;
+                            break;
+                        }
+                        i++;
+                    };
+                    if (!contains)
+                    {
+                        Console.WriteLine("Nie ma takiego zestawu");
+                        Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
+                        Console.ReadLine();
+                    }
+                    break;
+
+                default:
+                    Console.WriteLine("Niepoprawna komenda");
+                    Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
+                    Console.ReadLine();
+                    break;
+            }
+        }
+    }
+}
+    static class BazaZestawow
+    {
+        static public List<FiszkaZestaw> wszystkieZestawy = new List<FiszkaZestaw>();
+
+        static public bool UsunZestaw(FiszkaZestaw zestawDoUsuniecia)
+        {
+            if (wszystkieZestawy.Contains(zestawDoUsuniecia))
+            {
+                wszystkieZestawy.Remove(zestawDoUsuniecia);
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Nie ma takiego zestawu");
+                return false;
+            }
+        }
+    }
+
+    static class BazaFiszek
+    {
+        static public List<Fiszka> wszystkieFiszki = new List<Fiszka>();
+        static public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
+        {
+            if (wszystkieFiszki.Contains(fiszkaDoUsuniecia))
+            {
+                wszystkieFiszki.Remove(fiszkaDoUsuniecia);
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Nie ma takiej fiszki");
+                return false;
+            }
+        }
+    }
+
+    public class Fiszka
+    {
+        public string slowo;
+        public string tlumaczenie;
+        public bool czyZnana;
+        public int poziomZnajomosci;
+
+        public Fiszka(string slowo, string tlumaczenie)
+        {
+            this.slowo = slowo;
+            this.tlumaczenie = tlumaczenie;
+            //BazaFiszek.wszystkieFiszki.Add(this);  to powodowalo bledy bo odrazu te zestawy co importowalam uaaklualnialy baze fiszek
+        }
+        public override string ToString()
+        {
+            return $"{slowo} / {tlumaczenie}";
+        }
+    }
+    public class FiszkaZestaw
+    {
+        public List<Fiszka> fiszki;
+        public string nazwa;
+        public string kategoria;
+
+        public FiszkaZestaw(List<Fiszka> fiszki)
+        {
+            this.fiszki = fiszki;
+            BazaZestawow.wszystkieZestawy.Add(this);
+        }
+
+        public void DodajFiszke(Fiszka nowaFiszka)
+        {
+            fiszki.Add(nowaFiszka);
+        }
+
+        public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
+        {
+            if (fiszki.Contains(fiszkaDoUsuniecia))
+            {
+                fiszki.Remove(fiszkaDoUsuniecia);
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("nie ma takiej fiszki");
+                return false;
+            }
+        }
+        public override string ToString()
+        {
+            return $"Zestaw \"{nazwa}\" \n(kategoria {kategoria}, ilosc elementow: {fiszki.Count})";
+        }
+    }
+
+public class ImportExport
 {
-    static public List<FiszkaZestaw> wszystkieZestawy = new List<FiszkaZestaw>();
 
-    static public bool UsunZestaw(FiszkaZestaw zestawDoUsuniecia)
+    static public void Importuj(string nazwaPliku)
     {
-        if (wszystkieZestawy.Contains(zestawDoUsuniecia))
+        List<Fiszka> fiszkiPomocnicze = new List<Fiszka>();
+        FiszkaZestaw nowyZestaw = new FiszkaZestaw(fiszkiPomocnicze);
+        Console.WriteLine("podaj nazwe zestawu:");
+        Console.Write("> ");
+        nowyZestaw.nazwa = Console.ReadLine();
+        Console.WriteLine("podaj kategorie zestawu:");
+        Console.Write("> ");
+        nowyZestaw.kategoria = Console.ReadLine();
+        string[] linie = File.ReadAllLines(nazwaPliku);
+        foreach (string line in linie)
         {
-            wszystkieZestawy.Remove(zestawDoUsuniecia);
-            return true;
+            string[] czesci = line.Split(',');
+            if (czesci.Length == 2)
+            {
+                string slowo = czesci[0].Trim();
+                string tlumaczenie = czesci[1].Trim();
+                Fiszka nowaFiszka = new Fiszka(slowo, tlumaczenie);
+                fiszkiPomocnicze.Add(nowaFiszka);
+            }
         }
-        else
+    }
+
+    static public void Eksportuj(FiszkaZestaw fiszkaZestawVar, string nazwaPliku)
+    {
+        using (StreamWriter writer = new StreamWriter(nazwaPliku + ".txt"))
         {
-            Console.WriteLine("Nie ma takiego zestawu");
-            return false;
+            foreach (Fiszka fiszka in fiszkaZestawVar.fiszki)
+            {
+                writer.WriteLine($"{fiszka.slowo}, {fiszka.tlumaczenie}");
+            }
         }
     }
 }
 
-static class BazaFiszek
-{
-    static public List<Fiszka> wszystkieFiszki = new List<Fiszka>();
-    static public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
-    {
-        if (wszystkieFiszki.Contains(fiszkaDoUsuniecia))
-        {
-            wszystkieFiszki.Remove(fiszkaDoUsuniecia);
-            return true;
-        }
-        else
-        {
-            Console.WriteLine("Nie ma takiej fiszki");
-            return false;
-        }
-    }
-}
-
-public class Fiszka
-{
-    public string slowo;
-    public string tlumaczenie;
-    public bool czyZnana;
-    public int poziomZnajomosci;
-
-    public Fiszka(string slowo, string tlumaczenie)
-    {
-        this.slowo = slowo;
-        this.tlumaczenie = tlumaczenie;
-        BazaFiszek.wszystkieFiszki.Add(this);
-    }
-    public override string ToString()
-    {
-        return $"{slowo} / {tlumaczenie}";
-    }
-}
-public class FiszkaZestaw
-{
-    public List<Fiszka> fiszki;
-    public string nazwa;
-    public string kategoria;
-
-    public FiszkaZestaw(List<Fiszka> fiszki)
-    {
-       this.fiszki = fiszki;
-       BazaZestawow.wszystkieZestawy.Add(this);
-    }
-
-    public void DodajFiszke(Fiszka nowaFiszka)
-    {
-        fiszki.Add(nowaFiszka);
-    }
-
-    public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
-    {
-        if (fiszki.Contains(fiszkaDoUsuniecia))
-        {
-            fiszki.Remove(fiszkaDoUsuniecia);
-            return true;
-        }
-        else
-        {
-            Console.WriteLine("nie ma takiej fiszki");
-            return false;
-        }
-    }
-    public override string ToString()
-    {
-        return $"Zestaw \"{nazwa}\" \n(kategoria {kategoria}, ilosc elementow: {fiszki.Count})";
-    }
-}

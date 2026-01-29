@@ -1,0 +1,29 @@
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.deps.json
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.runtimeconfig.json
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.pdb
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.AssemblyInfoInputs.cache
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.AssemblyInfo.cs
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.csproj.CoreCompileInputs.cache
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/refint/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.pdb
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.genruntimeconfig.cache
+/Users/kanimod/Desktop/Projekt ZTP- JA,ZS,PM/Projekt_ZTP/obj/Debug/net9.0/ref/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.deps.json
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.runtimeconfig.json
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/bin/Debug/net9.0/Projekt_ZTP.pdb
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.AssemblyInfoInputs.cache
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.AssemblyInfo.cs
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.csproj.CoreCompileInputs.cache
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.sourcelink.json
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/refint/Projekt_ZTP.dll
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.pdb
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/Projekt_ZTP.genruntimeconfig.cache
+/Users/kanimod/Desktop/Projekt_ztp/Projekt_ZTP/obj/Debug/net9.0/ref/Projekt_ZTP.dll
