@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection.Metadata.Ecma335;
 public enum TypTrybu
 {
     FISZKA,
@@ -100,6 +101,11 @@ public class TrybQuiz : ITrybNauki
     private int nrFiszki = 0;
     private Fiszka obecnaFiszka;
     private FiszkaZestaw obecnyZestaw;
+    private List<Fiszka> odpowiedzi;
+    private int poprawnaOdpowiedz;
+
+    Random rng = new Random();
+
     public TrybQuiz(FiszkaZestaw obecnyZestaw)
     {
         this.obecnyZestaw = obecnyZestaw;
@@ -107,41 +113,95 @@ public class TrybQuiz : ITrybNauki
     }
     public string ZwrocInfo()
     {
-        return "0 - Wyjdz z trybu\n" +
-               "Podaj odpowiedz na pytanie:\n";
+        if (obecnyZestaw.fiszki.Count < 4)
+        {
+            return "Zestaw musi zawierać co najmniej 4 fiszki, aby korzystać z trybu quizu.";
+        }
+        else
+        {
+            return "0 - Wyjdz z trybu\n" +
+                   "1 - Poprzednie słowo\n" +
+                   "2 - Nastepne słowo\n" +
+                   "Wybierz numer poprawnej odpowiedzi (3-6)\n";
+        }
     }
+
+
     public string ZwrocPytanie()
     {
-        return "to be implemented";
+        odpowiedzi = new List<Fiszka>();
+        odpowiedzi.Add(obecnaFiszka);
+
+        while (odpowiedzi.Count < 4)
+        {
+            int idx = rng.Next(obecnyZestaw.fiszki.Count);
+            Fiszka losowa = obecnyZestaw.fiszki[idx];
+
+            if (!odpowiedzi.Contains(losowa))
+                odpowiedzi.Add(losowa);
+        }
+
+        odpowiedzi = odpowiedzi.OrderBy(x => rng.Next()).ToList();
+
+        poprawnaOdpowiedz = odpowiedzi.IndexOf(obecnaFiszka);
+
+        return
+            $"Słowo nr. {nrFiszki + 1}: {obecnaFiszka.slowo}\n" +
+            "Wybierz poprawne tłumaczenie:\n" +
+            $"1. {odpowiedzi[0].tlumaczenie}\n" +
+            $"2. {odpowiedzi[1].tlumaczenie}\n" +
+            $"3. {odpowiedzi[2].tlumaczenie}\n" +
+            $"4. {odpowiedzi[3].tlumaczenie}\n";
     }
     public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
     {
-        return StatusPrzetwarzania.NICNIEROB;
+        if (odpowiedz == "0")
+            return StatusPrzetwarzania.WYJDZ;
+
+        if (!int.TryParse(odpowiedz, out int wybor) || wybor < 1 || wybor > 4)
+            return StatusPrzetwarzania.NIEZNANAKOMENDA;
+
+        if (wybor - 1 == poprawnaOdpowiedz)
+        {
+            nrFiszki = int.Clamp(nrFiszki + 1, 0, obecnyZestaw.fiszki.Count() - 1);
+            obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+            return StatusPrzetwarzania.POPRAWNA_ODP;
+        }
+        else
+        {
+            return StatusPrzetwarzania.NIEPOPRAWNA_ODP;
+        }
     }
 }
 
 public static class FabrykaTrybow
-{
-    public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
     {
-        switch (typ)
+        public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
         {
-            case TypTrybu.FISZKA:
-                return new TrybFiszka(zestaw);
+            switch (typ)
+            {
+                case TypTrybu.FISZKA:
+                    return new TrybFiszka(zestaw);
 
-            //narazie quiz i wpisywanie zwracaja fiszka bo nie ma ich klas a metoda musi cos zwrocic
-            case TypTrybu.QUIZ:
-                return new TrybFiszka(zestaw);
+                //narazie quiz i wpisywanie zwracaja fiszka bo nie ma ich klas a metoda musi cos zwrocic
+                case TypTrybu.QUIZ:
+                    if (zestaw.fiszki.Count < 4)
+                    {
+                        Console.WriteLine("Zestaw musi zawierać co najmniej 4 fiszki, aby korzystać z trybu quizu. Zwracam tryb fiszka.");
+                        return new TrybFiszka(zestaw);
+                    } else {
+                        return new TrybQuiz(zestaw);
+                    }
 
-            case TypTrybu.WPISYWANIE:
-                return new TrybFiszka(zestaw);
+                case TypTrybu.WPISYWANIE:
+                    return new TrybFiszka(zestaw);
 
-            default:
-                Console.WriteLine("Niepoprawny typ trybu nauki podczas wyboru, zwracam trybfiszka");
-                return new TrybFiszka(zestaw);
+                default:
+                    Console.WriteLine("Niepoprawny typ trybu nauki podczas wyboru, zwracam trybfiszka");
+                    return new TrybFiszka(zestaw);
+            }
         }
     }
-}
 
 // Ta klasa NIE JEST napisana w dobrej praktyce programistycznej, ale zalezalo mi na czasie, a nie
 // na wymyslaniu klas abstrakcyjnych zeby tylko durne ui moglo je implementowac

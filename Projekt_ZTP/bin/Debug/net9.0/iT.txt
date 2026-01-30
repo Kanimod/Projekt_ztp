@@ -1,0 +1,6 @@
+stary,old
+nowy,new
+hujowy,shitty
+abc,cba
+ola,alo
+elo,loe
