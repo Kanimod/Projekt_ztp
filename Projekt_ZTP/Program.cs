@@ -1,4 +1,5 @@
 using System;
+using System.Formats.Asn1;
 using System.IO;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
@@ -154,35 +155,40 @@ public class TrybQuiz : TrybNaukiBase
     public override StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
     {
         if (odpowiedz == "0")
-            return StatusPrzetwarzania.WYJDZ;
-
-        if (!int.TryParse(odpowiedz, out int wybor) || wybor < 1 || wybor > 4)
-            return StatusPrzetwarzania.NIEZNANAKOMENDA;
-
-        if (wybor - 3 == poprawnaOdpowiedz)
         {
-            Powiadom(obecnaFiszka, true);
-            nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
-            obecnaFiszka = zestaw.fiszki[nrFiszki];
-            return StatusPrzetwarzania.POPRAWNA_ODP;
-        } else if(odpowiedz== "1")
+            return StatusPrzetwarzania.WYJDZ;
+        }
+        else if (odpowiedz == "1")
         {
             nrFiszki = int.Clamp(nrFiszki - 1, 0, zestaw.fiszki.Count() - 1);
             obecnaFiszka = zestaw.fiszki[nrFiszki];
             return StatusPrzetwarzania.NICNIEROB;
         }
-        else if(odpowiedz=="2")
+        else if (odpowiedz == "2")
         {
             nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
             obecnaFiszka = zestaw.fiszki[nrFiszki];
             return StatusPrzetwarzania.NICNIEROB;
-            
         }
-        else
+        else if (Int32.Parse(odpowiedz) - 3 == poprawnaOdpowiedz)
+        {
+            Powiadom(obecnaFiszka, true);
+            nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+            obecnaFiszka = zestaw.fiszki[nrFiszki];
+            return StatusPrzetwarzania.POPRAWNA_ODP;
+        }
+        else if (int.TryParse(odpowiedz, out int num) && num >= 3 && num <= 6)
         {
             Powiadom(obecnaFiszka, false);
             return StatusPrzetwarzania.NIEPOPRAWNA_ODP;
         }
+        else
+        {
+            return StatusPrzetwarzania.NIEZNANAKOMENDA;
+        }
+
+
+
     }
 }
 
@@ -271,7 +277,6 @@ public static class FabrykaTrybow
             case TypTrybu.FISZKA:
                 return new TrybFiszka(zestaw);
 
-            //narazie quiz i wpisywanie zwracaja fiszka bo nie ma ich klas a metoda musi cos zwrocic
             case TypTrybu.QUIZ:
                 if (zestaw.fiszki.Count < 4)
                 {
@@ -1085,5 +1090,3 @@ public class ImportExport
         }
     }
 }
-
-
