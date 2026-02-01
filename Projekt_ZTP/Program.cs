@@ -1,6 +1,9 @@
-﻿using System;
+using System;
+using System.Formats.Asn1;
 using System.IO;
 using System.Reflection.Metadata.Ecma335;
+using System.Text;
+
 public enum TypTrybu
 {
     FISZKA,
@@ -17,6 +20,12 @@ public enum StatusPrzetwarzania
     NIEZNANAKOMENDA
 }
 
+public enum TypPytaniaTestu
+{
+    QUIZ,
+    WPISYWANIE
+}
+
 // poprosze zeby wszystkie tryby nauki implementowaly ten interfejs
 // 1. tryb nauki najpierw wysyla string z info o tym jak dziala do ui, ui go wyswietla
 // 2. ZwrocPytanie generuje i zwraca pytanie testowe/quizowe cokolwiek
@@ -31,20 +40,18 @@ public interface ITrybNauki
     public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz);
 }
 
-public class TrybFiszka : ITrybNauki
+public class TrybFiszka : TrybNaukiBase
 {
     private int nrFiszki = 0;
     private Fiszka obecnaFiszka;
-    private FiszkaZestaw obecnyZestaw;
     private bool czyWszystkieOdwrocone = false;
     private bool czyObecnaOdwrocona = false;
 
-    public TrybFiszka(FiszkaZestaw obecnyZestaw)
+    public TrybFiszka(FiszkaZestaw zestaw) : base(zestaw)
     {
-        this.obecnyZestaw = obecnyZestaw;
-        obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+        obecnaFiszka = zestaw.fiszki[nrFiszki];
     }
-    public string ZwrocInfo()
+    public override string ZwrocInfo()
     {
         return "0 - Wyjdz z trybu\n" +
                "1 - Poprzednia Fiszka\n" +
@@ -52,7 +59,7 @@ public class TrybFiszka : ITrybNauki
                "3 - Odwróć obecną fiszkę\n" +
                "4 - Odwróc wszystkie fiszki\n";
     }
-    public string ZwrocPytanie()
+    public override string ZwrocPytanie()
     {
         bool pokazSlowo;
         if (czyObecnaOdwrocona) { pokazSlowo = czyWszystkieOdwrocone; }
@@ -62,7 +69,7 @@ public class TrybFiszka : ITrybNauki
         return $"Słowo nr. {nrFiszki + 1}: {obecneSlowo}:";
     }
 
-    public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
+    public override StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
     {
         switch (odpowiedz)
         {
@@ -70,14 +77,14 @@ public class TrybFiszka : ITrybNauki
                 return StatusPrzetwarzania.WYJDZ;
 
             case "1":
-                nrFiszki = int.Clamp(nrFiszki - 1, 0, obecnyZestaw.fiszki.Count() - 1);
-                obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+                nrFiszki = int.Clamp(nrFiszki - 1, 0, zestaw.fiszki.Count() - 1);
+                obecnaFiszka = zestaw.fiszki[nrFiszki];
                 czyObecnaOdwrocona = false;
                 return StatusPrzetwarzania.NICNIEROB;
 
             case "2":
-                nrFiszki = int.Clamp(nrFiszki + 1, 0, obecnyZestaw.fiszki.Count() - 1);
-                obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+                nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+                obecnaFiszka = zestaw.fiszki[nrFiszki];
                 czyObecnaOdwrocona = false;
                 return StatusPrzetwarzania.NICNIEROB;
 
@@ -96,24 +103,22 @@ public class TrybFiszka : ITrybNauki
     }
 }
 
-public class TrybQuiz : ITrybNauki
+public class TrybQuiz : TrybNaukiBase
 {
     private int nrFiszki = 0;
     private Fiszka obecnaFiszka;
-    private FiszkaZestaw obecnyZestaw;
     private List<Fiszka> odpowiedzi;
     private int poprawnaOdpowiedz;
 
     Random rng = new Random();
 
-    public TrybQuiz(FiszkaZestaw obecnyZestaw)
+    public TrybQuiz(FiszkaZestaw zestaw) : base(zestaw)
     {
-        this.obecnyZestaw = obecnyZestaw;
-        obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+        obecnaFiszka = zestaw.fiszki[nrFiszki];
     }
-    public string ZwrocInfo()
+    public override string ZwrocInfo()
     {
-        if (obecnyZestaw.fiszki.Count < 4)
+        if (zestaw.fiszki.Count < 4)
         {
             return "Zestaw musi zawierać co najmniej 4 fiszki, aby korzystać z trybu quizu.";
         }
@@ -127,15 +132,15 @@ public class TrybQuiz : ITrybNauki
     }
 
 
-    public string ZwrocPytanie()
+    public override string ZwrocPytanie()
     {
         odpowiedzi = new List<Fiszka>();
         odpowiedzi.Add(obecnaFiszka);
 
         while (odpowiedzi.Count < 4)
         {
-            int idx = rng.Next(obecnyZestaw.fiszki.Count);
-            Fiszka losowa = obecnyZestaw.fiszki[idx];
+            int idx = rng.Next(zestaw.fiszki.Count);
+            Fiszka losowa = zestaw.fiszki[idx];
 
             if (!odpowiedzi.Contains(losowa))
                 odpowiedzi.Add(losowa);
@@ -148,60 +153,251 @@ public class TrybQuiz : ITrybNauki
         return
             $"Słowo nr. {nrFiszki + 1}: {obecnaFiszka.slowo}\n" +
             "Wybierz poprawne tłumaczenie:\n" +
-            $"1. {odpowiedzi[0].tlumaczenie}\n" +
-            $"2. {odpowiedzi[1].tlumaczenie}\n" +
-            $"3. {odpowiedzi[2].tlumaczenie}\n" +
-            $"4. {odpowiedzi[3].tlumaczenie}\n";
+            $"3. {odpowiedzi[0].tlumaczenie}\n" +
+            $"4. {odpowiedzi[1].tlumaczenie}\n" +
+            $"5. {odpowiedzi[2].tlumaczenie}\n" +
+            $"6. {odpowiedzi[3].tlumaczenie}\n";
     }
-    public StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
+    public override StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
     {
         if (odpowiedz == "0")
-            return StatusPrzetwarzania.WYJDZ;
-
-        if (!int.TryParse(odpowiedz, out int wybor) || wybor < 1 || wybor > 4)
-            return StatusPrzetwarzania.NIEZNANAKOMENDA;
-
-        if (wybor - 1 == poprawnaOdpowiedz)
         {
-            nrFiszki = int.Clamp(nrFiszki + 1, 0, obecnyZestaw.fiszki.Count() - 1);
-            obecnaFiszka = obecnyZestaw.fiszki[nrFiszki];
+            return StatusPrzetwarzania.WYJDZ;
+        }
+        else if (odpowiedz == "1")
+        {
+            nrFiszki = int.Clamp(nrFiszki - 1, 0, zestaw.fiszki.Count() - 1);
+            obecnaFiszka = zestaw.fiszki[nrFiszki];
+            return StatusPrzetwarzania.NICNIEROB;
+        }
+        else if (odpowiedz == "2")
+        {
+            nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+            obecnaFiszka = zestaw.fiszki[nrFiszki];
+            return StatusPrzetwarzania.NICNIEROB;
+        }
+        else if (Int32.Parse(odpowiedz) - 3 == poprawnaOdpowiedz)
+        {
+            Powiadom(obecnaFiszka, true);
+            nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+            obecnaFiszka = zestaw.fiszki[nrFiszki];
             return StatusPrzetwarzania.POPRAWNA_ODP;
+        }
+        else if (int.TryParse(odpowiedz, out int num) && num >= 3 && num <= 6)
+        {
+            Powiadom(obecnaFiszka, false);
+            return StatusPrzetwarzania.NIEPOPRAWNA_ODP;
         }
         else
         {
-            return StatusPrzetwarzania.NIEPOPRAWNA_ODP;
+            return StatusPrzetwarzania.NIEZNANAKOMENDA;
+        }
+
+
+
+    }
+}
+
+public class TrybWpisywanie : TrybNaukiBase
+{
+    private int nrFiszki = 0;
+    private Fiszka obecnaFiszka;
+    private bool czyOdwrocone = false;
+
+    public TrybWpisywanie(FiszkaZestaw zestaw) : base(zestaw)
+    {
+        obecnaFiszka = zestaw.fiszki[nrFiszki];
+    }
+
+    public override string ZwrocInfo()
+    {
+        return "0 - Wyjdz z trybu\n" +
+               "1 - Poprzednie słowo\n" +
+               "2 - Nastepne słowo\n" +
+               "3 - Zmień kierunek (słowo↔tłumaczenie)\n" +
+               "Wpisz odpowiedź i zatwierdź Enter\n";
+    }
+
+    public override string ZwrocPytanie()
+    {
+        string pokaz = czyOdwrocone ? obecnaFiszka.tlumaczenie : obecnaFiszka.slowo;
+        return $"Słowo nr. {nrFiszki + 1}: {pokaz}\n" +
+               "Wpisz poprawną odpowiedź:";
+    }
+
+    public override StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz)
+    {
+        if (odpowiedz == null) odpowiedz = "";
+        odpowiedz = odpowiedz.Trim();
+
+        switch (odpowiedz)
+        {
+            case "0":
+                return StatusPrzetwarzania.WYJDZ;
+
+            case "1":
+                nrFiszki = int.Clamp(nrFiszki - 1, 0, zestaw.fiszki.Count() - 1);
+                obecnaFiszka = zestaw.fiszki[nrFiszki];
+                return StatusPrzetwarzania.NICNIEROB;
+
+            case "2":
+                nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+                obecnaFiszka = zestaw.fiszki[nrFiszki];
+                return StatusPrzetwarzania.NICNIEROB;
+
+            case "3":
+                czyOdwrocone = !czyOdwrocone;
+                return StatusPrzetwarzania.NICNIEROB;
+
+            default:
+                if (odpowiedz == "")
+                    return StatusPrzetwarzania.NICNIEROB;
+
+                // oczekiwana odpowiedź zależy od kierunku
+                string oczekiwana = czyOdwrocone ? obecnaFiszka.slowo : obecnaFiszka.tlumaczenie;
+
+                bool ok = string.Equals(odpowiedz, oczekiwana, StringComparison.OrdinalIgnoreCase);
+
+                // observer (statystyki)
+                Powiadom(obecnaFiszka, ok);
+
+                if (ok)
+                {
+                    nrFiszki = int.Clamp(nrFiszki + 1, 0, zestaw.fiszki.Count() - 1);
+                    obecnaFiszka = zestaw.fiszki[nrFiszki];
+                    return StatusPrzetwarzania.POPRAWNA_ODP;
+                }
+
+                return StatusPrzetwarzania.NIEPOPRAWNA_ODP;
         }
     }
 }
 
+
 public static class FabrykaTrybow
+{
+    public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
     {
-        public static ITrybNauki UtworzTryb(TypTrybu typ, FiszkaZestaw zestaw)
+        switch (typ)
         {
-            switch (typ)
-            {
-                case TypTrybu.FISZKA:
-                    return new TrybFiszka(zestaw);
+            case TypTrybu.FISZKA:
+                return new TrybFiszka(zestaw);
 
-                //narazie quiz i wpisywanie zwracaja fiszka bo nie ma ich klas a metoda musi cos zwrocic
-                case TypTrybu.QUIZ:
-                    if (zestaw.fiszki.Count < 4)
-                    {
-                        Console.WriteLine("Zestaw musi zawierać co najmniej 4 fiszki, aby korzystać z trybu quizu. Zwracam tryb fiszka.");
-                        return new TrybFiszka(zestaw);
-                    } else {
-                        return new TrybQuiz(zestaw);
-                    }
-
-                case TypTrybu.WPISYWANIE:
+            case TypTrybu.QUIZ:
+                if (zestaw.fiszki.Count < 4)
+                {
+                    Console.WriteLine("Zestaw musi zawierać co najmniej 4 fiszki, aby korzystać z trybu quizu. Zwracam tryb fiszka.");
                     return new TrybFiszka(zestaw);
+                }
+                else
+                {
+                    return new TrybQuiz(zestaw);
+                }
 
-                default:
-                    Console.WriteLine("Niepoprawny typ trybu nauki podczas wyboru, zwracam trybfiszka");
-                    return new TrybFiszka(zestaw);
-            }
+            case TypTrybu.WPISYWANIE:
+                return new TrybWpisywanie(zestaw);
+
+            default:
+                Console.WriteLine("Niepoprawny typ trybu nauki podczas wyboru, zwracam trybfiszka");
+                return new TrybFiszka(zestaw);
         }
     }
+}
+
+public interface IObserver
+{
+    void Aktualizuj(Fiszka fiszka, bool poprawnaOdpowiedz);
+}
+
+public interface ISubject
+{
+    void Subskrybuj(IObserver observer);
+    void Odsubskrybuj(IObserver observer);
+    void Powiadom(Fiszka fiszka, bool poprawnaOdpowiedz);
+}
+
+public abstract class TrybNaukiBase : ITrybNauki, ISubject
+{
+    protected FiszkaZestaw zestaw;
+    private readonly List<IObserver> obserwatorzy = new();
+
+    protected TrybNaukiBase(FiszkaZestaw zestaw)
+    {
+        this.zestaw = zestaw;
+    }
+
+    public void Subskrybuj(IObserver observer)
+    {
+        if (!obserwatorzy.Contains(observer))
+            obserwatorzy.Add(observer);
+    }
+
+    public void Odsubskrybuj(IObserver observer)
+    {
+        obserwatorzy.Remove(observer);
+    }
+
+    public void Powiadom(Fiszka fiszka, bool poprawna)
+    {
+        foreach (var obs in obserwatorzy)
+            obs.Aktualizuj(fiszka, poprawna);
+    }
+
+    public abstract string ZwrocInfo();
+    public abstract string ZwrocPytanie();
+    public abstract StatusPrzetwarzania PrzetworzOdpowiedz(string odpowiedz);
+}
+
+public class Statystyki : IObserver
+{
+    private readonly Dictionary<Fiszka, (int ok, int err)> dane = new();
+
+    public void Aktualizuj(Fiszka fiszka, bool poprawna)
+    {
+        if (!dane.ContainsKey(fiszka))
+            dane[fiszka] = (0, 0);
+
+        var (ok, err) = dane[fiszka];
+        if (poprawna) ok++; else err++;
+        dane[fiszka] = (ok, err);
+    }
+
+    public string Raport()
+    {
+        if (dane.Count == 0) return "Brak statystyk.";
+
+        var sb = new StringBuilder();
+        sb.AppendLine("STATYSTYKI:");
+        foreach (var d in dane)
+            sb.AppendLine($"{d.Key.slowo} → Poprawne: {d.Value.ok}, Błędne: {d.Value.err}");
+        return sb.ToString();
+    }
+}
+
+public class PowtorkaBledow : IObserver
+{
+    private readonly List<Fiszka> bledneFiszki = new();
+
+    public void Aktualizuj(Fiszka fiszka, bool poprawnaOdpowiedz)
+    {
+        if (!poprawnaOdpowiedz&&bledneFiszki.Contains(fiszka)==false)
+            bledneFiszki.Add(fiszka);
+    }
+
+    public bool CzySaBledy()
+        => bledneFiszki.Count > 0;
+
+    public FiszkaZestaw UtworzZestawDoPowtorki()
+    {
+        return new FiszkaZestaw(bledneFiszki.ToList(),false)
+        {
+            nazwa = "Powtórka błędów",
+            kategoria = "Automatyczna"
+        };
+    }
+}
+
+
 
 // Ta klasa NIE JEST napisana w dobrej praktyce programistycznej, ale zalezalo mi na czasie, a nie
 // na wymyslaniu klas abstrakcyjnych zeby tylko durne ui moglo je implementowac
@@ -258,7 +454,7 @@ public class UI
             "3. Tryby Nauki\n" +
             "4. Statystyki\n" +
             "5. Test\n" +
-            "6. Importuj dane\n";
+            "6. Import/Eksport zestawow\n";
 
         while (menuWlaczone)
         {
@@ -284,7 +480,9 @@ public class UI
                 case "3":
                     MenuWyborTrybuNauki();
                     break;
-
+                case "5":
+                    MenuTest();
+                    break;
                 case "6":
                     MenuImportExport();
                     break;
@@ -612,6 +810,15 @@ public class UI
     {
         ITrybNauki obecnyTryb = FabrykaTrybow.UtworzTryb(wybranyTyp, wybranyZestaw);
         bool trybWlaczony = true;
+        var staty = new Statystyki();
+        var powtorka = new PowtorkaBledow();
+
+        if (obecnyTryb is TrybNaukiBase baza)
+        {
+            baza.Subskrybuj(staty);
+            baza.Subskrybuj(powtorka);
+        }
+
 
         while (trybWlaczony)
         {
@@ -649,6 +856,24 @@ public class UI
             }
 
         }
+        Console.WriteLine(staty.Raport());
+        Console.ReadLine();
+
+        if (powtorka.CzySaBledy())
+        {
+            Console.Clear();
+            Console.WriteLine("Czy chcesz przejść do powtórki błędów?\n1. Tak\n2. Nie");
+            Console.Write("> ");
+
+            var decyzja = Console.ReadLine();
+
+            if (decyzja == "1")
+            {
+                var zestawPowtorki = powtorka.UtworzZestawDoPowtorki();
+
+                MenuTrybNauki(TypTrybu.WPISYWANIE, zestawPowtorki);
+            }
+        }
     }
 
     static void MenuImportExport()
@@ -658,7 +883,7 @@ public class UI
         string message = "0. Wyjdz\n" +
                          "1. Importuj zestaw\n" +
                          "2. Eksportuj zestaw\n";
-        
+
         while (menuWlaczone)
         {
             Console.Clear();
@@ -698,16 +923,16 @@ public class UI
                     Console.WriteLine("Wybierz nazwe zestawu do eksportu:");
                     Console.Write("> ");
                     int i = 0;
-                    while(i!=BazaZestawow.wszystkieZestawy.Count)
+                    while (i != BazaZestawow.wszystkieZestawy.Count)
                     {
-                        Console.WriteLine($"{i+1}. {BazaZestawow.wszystkieZestawy[i].nazwa}");
+                        Console.WriteLine($"{i + 1}. {BazaZestawow.wszystkieZestawy[i].nazwa}");
                         i++;
                     }
                     Console.Write("\n> ");
-                    FiszkaZestaw nazwaZestawu = BazaZestawow.wszystkieZestawy[int.Parse(Console.ReadLine())-1];
-                    nazwaPliku= nazwaZestawu.nazwa;
+                    FiszkaZestaw nazwaZestawu = BazaZestawow.wszystkieZestawy[int.Parse(Console.ReadLine()) - 1];
+                    nazwaPliku = nazwaZestawu.nazwa;
                     i = 0;
-                    bool contains= false;
+                    bool contains = false;
                     while (i != BazaZestawow.wszystkieZestawy.Count())
                     {
                         nazwaZestawu = BazaZestawow.wszystkieZestawy[i];
@@ -716,7 +941,7 @@ public class UI
                             Console.WriteLine("Pod jaka nazwe pliku eksport wykonac (bez rozszerzenia)?");
                             Console.Write("> ");
                             nazwaPliku = Console.ReadLine();
-                            ImportExport.Eksportuj(nazwaZestawu,nazwaPliku);
+                            ImportExport.Eksportuj(nazwaZestawu, nazwaPliku);
                             Console.WriteLine("Eksport zakonczony pomyslnie");
                             Console.WriteLine("Nacisnij Enter, aby kontynuowac...");
                             Console.ReadLine();
@@ -724,7 +949,8 @@ public class UI
                             break;
                         }
                         i++;
-                    };
+                    }
+                    ;
                     if (!contains)
                     {
                         Console.WriteLine("Nie ma takiego zestawu");
@@ -741,97 +967,153 @@ public class UI
             }
         }
     }
+    static void MenuTest()
+    {
+        bool menuWlaczone = true;
+        string message =
+            "0. Wyjdz\n" +
+            "1. Stworz nowy test do eksportu\n";
+        while (menuWlaczone)
+        {
+            Console.Clear();
+            Console.WriteLine(message);
+            Console.Write("> ");
+            string wybor = Console.ReadLine();
+            switch (wybor)
+            {
+                case "0":
+                    menuWlaczone = false;
+                    break;
+
+                case "1":
+                    int liczbaQuiz = 0;
+                    int liczbaWpis = 0;
+                    string nazwa;
+                    Console.WriteLine("Podaj nazwe testu:");
+                    Console.Write("> ");
+                    nazwa = Console.ReadLine();
+                    Console.WriteLine("Ile pytań Wpisywanie:");
+                    Console.Write("> ");
+                    liczbaQuiz = Int32.Parse(Console.ReadLine());
+                    Console.WriteLine("Ile pytań quiz");
+                    Console.Write("> ");
+                    liczbaWpis = Int32.Parse(Console.ReadLine());
+                    int wyborZestawu =
+                    PrzejrzyjListeElementow<FiszkaZestaw>(BazaZestawow.wszystkieZestawy);
+                    if (wyborZestawu == 0)
+                        break;
+
+                    FiszkaZestaw zestaw =
+                        BazaZestawow.wszystkieZestawy[wyborZestawu - 1];
+
+                    TestBuilder builder = new TestBuilder(zestaw);
+                    TestDirector director = new TestDirector(builder);
+
+                    Test nowyTest = director.ZbudujTest(nazwa, liczbaQuiz, liczbaWpis);
+                    File.WriteAllText(nazwa + ".txt", nowyTest.DoExportu());
+
+                    Console.WriteLine("Test zapisany do pliku.");
+                    Console.ReadLine();
+                    break;
+                default:
+                    Console.WriteLine("Niepoprawna komenda");
+                    Console.ReadLine();
+                    break;
+            }
+        }
+    }
 }
-    static class BazaZestawow
-    {
-        static public List<FiszkaZestaw> wszystkieZestawy = new List<FiszkaZestaw>();
+static class BazaZestawow
+{
+    static public List<FiszkaZestaw> wszystkieZestawy = new List<FiszkaZestaw>();
 
-        static public bool UsunZestaw(FiszkaZestaw zestawDoUsuniecia)
+    static public bool UsunZestaw(FiszkaZestaw zestawDoUsuniecia)
+    {
+        if (wszystkieZestawy.Contains(zestawDoUsuniecia))
         {
-            if (wszystkieZestawy.Contains(zestawDoUsuniecia))
-            {
-                wszystkieZestawy.Remove(zestawDoUsuniecia);
-                return true;
-            }
-            else
-            {
-                Console.WriteLine("Nie ma takiego zestawu");
-                return false;
-            }
+            wszystkieZestawy.Remove(zestawDoUsuniecia);
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("Nie ma takiego zestawu");
+            return false;
         }
     }
+}
 
-    static class BazaFiszek
+static class BazaFiszek
+{
+    static public List<Fiszka> wszystkieFiszki = new List<Fiszka>();
+    static public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
     {
-        static public List<Fiszka> wszystkieFiszki = new List<Fiszka>();
-        static public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
+        if (wszystkieFiszki.Contains(fiszkaDoUsuniecia))
         {
-            if (wszystkieFiszki.Contains(fiszkaDoUsuniecia))
-            {
-                wszystkieFiszki.Remove(fiszkaDoUsuniecia);
-                return true;
-            }
-            else
-            {
-                Console.WriteLine("Nie ma takiej fiszki");
-                return false;
-            }
+            wszystkieFiszki.Remove(fiszkaDoUsuniecia);
+            return true;
+        }
+        else
+        {
+            Console.WriteLine("Nie ma takiej fiszki");
+            return false;
         }
     }
+}
 
-    public class Fiszka
+public class Fiszka
+{
+    public string slowo;
+    public string tlumaczenie;
+    public bool czyZnana;
+    public int poziomZnajomosci;
+
+    public Fiszka(string slowo, string tlumaczenie)
     {
-        public string slowo;
-        public string tlumaczenie;
-        public bool czyZnana;
-        public int poziomZnajomosci;
+        this.slowo = slowo;
+        this.tlumaczenie = tlumaczenie;
+        //BazaFiszek.wszystkieFiszki.Add(this);  to powodowalo bledy bo odrazu te zestawy co importowalam uaaklualnialy baze fiszek
+    }
+    public override string ToString()
+    {
+        return $"{slowo} / {tlumaczenie}";
+    }
+}
+public class FiszkaZestaw
+{
+    public List<Fiszka> fiszki;
+    public string nazwa;
+    public string kategoria;
 
-        public Fiszka(string slowo, string tlumaczenie)
+    public FiszkaZestaw(List<Fiszka> fiszki, bool dodajDoBazy = true)
+    {
+        this.fiszki = fiszki;
+        if(dodajDoBazy)
+        BazaZestawow.wszystkieZestawy.Add(this);
+    }
+
+    public void DodajFiszke(Fiszka nowaFiszka)
+    {
+        fiszki.Add(nowaFiszka);
+    }
+
+    public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
+    {
+        if (fiszki.Contains(fiszkaDoUsuniecia))
         {
-            this.slowo = slowo;
-            this.tlumaczenie = tlumaczenie;
-            //BazaFiszek.wszystkieFiszki.Add(this);  to powodowalo bledy bo odrazu te zestawy co importowalam uaaklualnialy baze fiszek
+            fiszki.Remove(fiszkaDoUsuniecia);
+            return true;
         }
-        public override string ToString()
+        else
         {
-            return $"{slowo} / {tlumaczenie}";
+            Console.WriteLine("nie ma takiej fiszki");
+            return false;
         }
     }
-    public class FiszkaZestaw
+    public override string ToString()
     {
-        public List<Fiszka> fiszki;
-        public string nazwa;
-        public string kategoria;
-
-        public FiszkaZestaw(List<Fiszka> fiszki)
-        {
-            this.fiszki = fiszki;
-            BazaZestawow.wszystkieZestawy.Add(this);
-        }
-
-        public void DodajFiszke(Fiszka nowaFiszka)
-        {
-            fiszki.Add(nowaFiszka);
-        }
-
-        public bool UsunFiszke(Fiszka fiszkaDoUsuniecia)
-        {
-            if (fiszki.Contains(fiszkaDoUsuniecia))
-            {
-                fiszki.Remove(fiszkaDoUsuniecia);
-                return true;
-            }
-            else
-            {
-                Console.WriteLine("nie ma takiej fiszki");
-                return false;
-            }
-        }
-        public override string ToString()
-        {
-            return $"Zestaw \"{nazwa}\" \n(kategoria {kategoria}, ilosc elementow: {fiszki.Count})";
-        }
+        return $"Zestaw \"{nazwa}\" \n(kategoria {kategoria}, ilosc elementow: {fiszki.Count})";
     }
+}
 
 public class ImportExport
 {
@@ -869,6 +1151,149 @@ public class ImportExport
                 writer.WriteLine($"{fiszka.slowo}, {fiszka.tlumaczenie}");
             }
         }
+    }
+}
+
+
+public class PytanieTestowe
+{
+    public TypPytaniaTestu typ;
+    public string tresc;
+
+    public PytanieTestowe(TypPytaniaTestu typ, string tresc)
+    {
+        this.typ = typ;
+        this.tresc = tresc;
+    }
+}
+
+
+public class Test
+{
+    public string nazwa;
+    public List<PytanieTestowe> pytania = new List<PytanieTestowe>();
+
+    public string DoExportu()
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.AppendLine("TEST: " + nazwa);
+        sb.AppendLine("Liczba pytań: " + pytania.Count);
+        sb.AppendLine("--------------------------------");
+
+        int i = 1;
+        foreach (PytanieTestowe p in pytania)
+        {
+            sb.AppendLine(i +". " +p.tresc);
+            sb.AppendLine();
+            i++;
+        }
+
+        return sb.ToString();
+    }
+}
+
+
+public class TestBuilder
+{
+    public Test test = new Test();
+
+    private FiszkaZestaw zestaw;
+    private Random rng = new Random();
+
+    public TestBuilder(FiszkaZestaw zestaw)
+    {
+        this.zestaw = zestaw;
+    }
+
+    public void Reset()
+    {
+        test = new Test();
+    }
+
+    public void UstawNazwe(string nazwa)
+    {
+        test.nazwa = nazwa;
+    }
+
+    public void DodajQuizPytanie()
+    {
+        Fiszka fiszka = LosowaFiszka();
+        test.pytania.Add(
+            new PytanieTestowe(
+                TypPytaniaTestu.QUIZ,
+                GenerujQuiz(fiszka)
+            )
+        );
+    }
+
+    public void DodajWpisywaniePytanie()
+    {
+        Fiszka fiszka = LosowaFiszka();
+        test.pytania.Add(
+            new PytanieTestowe(
+                TypPytaniaTestu.WPISYWANIE,
+                GenerujWpisywanie(fiszka)
+            )
+        );
+    }
+
+    private Fiszka LosowaFiszka()
+    {
+        return zestaw.fiszki[rng.Next(zestaw.fiszki.Count)];
+    }
+
+    private string GenerujQuiz(Fiszka poprawna)
+    {
+        List<Fiszka> odp = new List<Fiszka>();
+        odp.Add(poprawna);
+
+        while (odp.Count < 4)
+        {
+            Fiszka losowa = LosowaFiszka();
+            if (!odp.Contains(losowa))
+                odp.Add(losowa);
+        }
+
+        odp = odp.OrderBy(x => rng.Next()).ToList();
+
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine("Słowo: " + poprawna.slowo);
+        sb.AppendLine("Wybierz poprawne tłumaczenie:");
+
+        for (int i = 0; i < odp.Count; i++)
+            sb.AppendLine((i + 1) + ". " + odp[i].tlumaczenie);
+
+        return sb.ToString();
+    }
+
+    private string GenerujWpisywanie(Fiszka fiszka)
+    {
+        return "Podaj tłumaczenie słowa: " + fiszka.slowo;
+    }
+}
+
+public class TestDirector
+{
+    private TestBuilder builder;
+
+    public TestDirector(TestBuilder builder)
+    {
+        this.builder = builder;
+    }
+
+    public Test ZbudujTest(string nazwa,int ileQuiz,int ileWpisywanie)
+    {
+        builder.Reset();
+        builder.UstawNazwe(nazwa);
+
+        for (int i = 0; i < ileQuiz; i++)
+            builder.DodajQuizPytanie();
+
+        for (int i = 0; i < ileWpisywanie; i++)
+            builder.DodajWpisywaniePytanie();
+
+        return builder.test;
     }
 }
 
